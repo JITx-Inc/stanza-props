@@ -1,0 +1,163 @@
+defpackage props :
+  import core
+  import collections
+
+defn default<?T> (v:T|False, d:?T) -> T :
+  match(v) :
+    (t:False) : d
+    (o:T) : o
+
+public deftype Prop<T>
+public defmulti name<?T> (p:Prop<?T>) -> String
+public defmulti scan<?T> (p:Prop<?T>, str:String) -> T
+public defmulti post<?T> (p:Prop<?T>) -> String
+public defmulti incr<?T> (p:Prop<?T>) -> T
+public defmulti decr<?T> (p:Prop<?T>) -> T
+public defmulti pull<?T> (p:Prop<?T>) -> T
+public defmulti push<?T> (p:Prop<?T>, v:T) -> T
+public defmulti subs<?T> (p:Prop<?T>) -> Vector<((Prop<T>) -> False)>
+
+defn setter-of<T,S> (f:((T) -> False)) -> ((Prop<S>, T) -> T) :
+  fn (p:Prop<S>, x:T) -> T :
+    f(x)
+    for sub in subs(p) do : sub(p) ;; PUBLISH TO SUBSCRIBERS
+    x
+
+public deftype CharProp <: Prop<Char>
+
+public defn CharProp (name:String, getter:() -> Char, _setter:(Char) -> False, delta:Int, minv:Char, maxv:Char) :
+  val subs = Vector<((Prop<Char>) -> False)>()
+  val setter = setter-of<Char,Char>(_setter)
+  new CharProp :
+    defmethod name (this) -> String : name
+    defmethod scan (this, str:String) -> Char : setter(this, str[0])
+    defmethod post (this) -> String : to-string(getter())
+    defmethod incr (this) -> Char: setter(this, to-char(min(to-int(maxv), to-int(getter()) + delta)))
+    defmethod decr (this) -> Char: setter(this, to-char(max(to-int(minv), to-int(getter()) - delta)))
+    defmethod pull (this) -> Char: getter()
+    defmethod push (this, v:Char) -> Char: setter(this, v)
+    defmethod subs (this) : subs
+
+public deftype IntProp <: Prop<Int>
+
+public defn IntProp (name:String, getter:() -> Int, _setter:(Int) -> False, delta:Int, minv:Int, maxv:Int) :
+  val setter = setter-of<Int,Int>(_setter)
+  val subs = Vector<((Prop<Int>) -> False)>()
+  new IntProp :
+    defmethod name (this) -> String : name
+    defmethod scan (this, str:String) -> Int :
+      match(to-int(str)) :
+        (f:False) : -1
+        (i:Int) : setter(this, i)
+    defmethod post (this) -> String : to-string(getter())
+    defmethod incr (this) -> Int: setter(this, min(maxv, getter() + delta))
+    defmethod decr (this) -> Int: setter(this, max(minv, getter() - delta))
+    defmethod pull (this) -> Int: getter()
+    defmethod push (this, v:Int) -> Int: setter(this, v)
+    defmethod subs (this) : subs
+
+public deftype FloatProp <: Prop<Float>
+
+public defn FloatProp (name:String, getter:() -> Float, _setter:(Float) -> False, delta:Float, minv:Float, maxv:Float) :
+  val setter = setter-of<Float,Float>(_setter)
+  val subs = Vector<((Prop<Float>) -> False)>()
+  new FloatProp :
+    defmethod name (this) -> String : name
+    defmethod scan (this, str:String) -> Float :
+      match(to-float(str)) :
+        (f:False) : -1.0f
+        (x:Float) : setter(this, x)
+    defmethod post (this) -> String : to-string(getter())
+    defmethod incr (this) -> Float: setter(this, min(maxv, getter() + delta))
+    defmethod decr (this) -> Float: setter(this, max(minv, getter() - delta))
+    defmethod pull (this) -> Float: getter()
+    defmethod push (this, v:Float) -> Float: setter(this, v)
+    defmethod subs (this) : subs
+
+public deftype StringProp <: Prop<String>
+
+public defn StringProp (name:String, getter:() -> String, _setter:(String) -> False) :
+  val setter = setter-of<String,String>(_setter)
+  val subs = Vector<((Prop<String>) -> False)>()
+  new StringProp :
+    defmethod name (this) -> String : name
+    defmethod scan (this, str:String) -> String : setter(this, str)
+    defmethod post (this) -> String : getter()
+    defmethod incr (this) -> String: getter()
+    defmethod decr (this) -> String: getter()
+    defmethod pull (this) -> String: getter()
+    defmethod push (this, v:String) -> String: setter(this, v)
+    defmethod subs (this) : subs
+
+deftype EnumProp <: StringProp
+
+public defn EnumProp (name:String, getter:() -> Int, _setter:(Int) -> False, choices:Array<String>) :
+  val size = length(choices)
+  defn mod (i:Int) -> Int : (i + size) % size
+  defn lim (i:Int) -> Int : min(size - 1, max(0, i))
+  defn lookup (s:String) -> Int : default(index-of(choices, s), 0)
+  val setter = setter-of<Int, String>(_setter)
+  val subs = Vector<((Prop<String>) -> False)>()
+  new EnumProp :
+    defmethod name (this) -> String : name
+    defmethod scan (this, str:String) -> String : choices[setter(this, lookup(str))]
+    defmethod post (this) -> String : to-string(getter())
+    defmethod incr (this) -> String: choices[setter(this, mod(getter() + 1))]
+    defmethod decr (this) -> String: choices[setter(this, mod(getter() - 1))]
+    defmethod pull (this) -> String: choices[getter()]
+    defmethod push (this, v:String) -> String: choices[setter(this, lookup(v))]
+    defmethod subs (this) : subs
+
+public deftype BoolProp <: Prop<True|False>
+
+public defn BoolProp (name:String, getter:() -> True|False, _setter:(True|False) -> False) :
+  val setter = setter-of<True|False,True|False>(_setter)
+  val subs = Vector<((Prop<True|False>) -> False)>()
+  new BoolProp :
+    defmethod name (this) -> String : name
+    defmethod scan (this, str:String) -> True|False : setter(this, str == "true")
+    defmethod post (this) -> String : to-string(getter())
+    defmethod incr (this) -> True|False: setter(this, not getter())
+    defmethod decr (this) -> True|False: incr(this)
+    defmethod pull (this) -> True|False: getter()
+    defmethod push (this, v:True|False) -> True|False: setter(this, v)
+    defmethod subs (this) : subs
+
+public deftype Props
+public defmulti elts (prop:Props) -> Vector<Prop>
+
+public defn Props () :
+  val elts = Vector<Prop>()
+  new Props :
+    defmethod elts (this) : elts
+
+public defn install (props:Props, prop:Prop) -> Prop :
+  add(elts(props), prop)
+  prop
+
+defn parse-arg (props:Props, args:Seq<String>) -> Int :
+  val s = next(args)
+  if s[0] == ':' :
+    if empty?(args) :
+      0
+    else :
+      label<Int> return :
+        val arg = next(args)
+        for prop in elts(props) do :
+          if matches?(s, 1, name(prop)) :
+            val x = scan(prop, arg)
+            ;; if scan(prop, arg) == false :
+            ;;   println-all(["Unable to process property " s " on " arg])
+            ;;   return(0)
+            return(1)
+        return(0)
+  else :
+    0
+
+public defn parse-args (props:Props, args:Seqable<String>) -> Int :
+  var c = 0
+  val s = to-seq(args)
+  while not empty?(s) :
+    c = c + parse-arg(props, s)
+  c
+

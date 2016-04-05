@@ -1,0 +1,65 @@
+defpackage prop-tests :
+  import core
+  import collections
+  import props
+  import test
+
+#use-overlay(test-language)
+
+deftest char-test :
+  var char = 'a'
+  val char-prop = CharProp("c", { char }, { char = _ }, 1, 'a', 'c')
+  assert-equal(pull(char-prop), 'a', "C0")
+  assert-equal(push(char-prop, 'b'), 'b', "C1")
+  assert-equal(incr(char-prop), 'c', "C2")
+  assert-equal(decr(char-prop), 'b', "C3")
+  assert-equal(scan(char-prop, "a"), 'a', "C4")
+
+deftest int-test :
+  var width = 0
+  val width-prop = IntProp("i", { width }, { width = _ }, 1, 0, 10)
+  assert-equal(pull(width-prop), 0, "W0")
+  assert-equal(push(width-prop, 1), 1, "W1")
+  assert-equal(incr(width-prop), 2 "W2")
+  assert-equal(decr(width-prop), 2, "W3")
+  assert-equal(scan(width-prop, "3"), 3, "W4")
+
+deftest float-test :
+  var scale = 0.0f
+  val scale-prop = FloatProp("f", { scale }, { scale = _ }, 0.1f, 0.0f, 10.0f)
+  assert-equal(pull(scale-prop), 0.0f, "S0")
+  assert-equal(push(scale-prop, 1.0f), 1.0f, "S1")
+  assert-equal(incr(scale-prop), 1.1f, "S2")
+  assert-equal(decr(scale-prop), 1.0f, "S3")
+  assert-equal(scan(scale-prop, "3.0"), 3.0f, "S4")
+
+deftest string-test :
+  var msg = "hello"
+  val msg-prop = StringProp("s", { msg }, { msg = _ })
+  assert-equal(pull(msg-prop), "hello", "M0")
+  assert-equal(push(msg-prop, "world"), "world", "M1")
+  assert-equal(scan(msg-prop, "goodbye"), "goodbye", "M2")
+
+deftest bool-test :
+  var bool = false
+  val bool-prop = BoolProp("b", { bool }, { bool = _ })
+  assert-equal(pull(bool-prop), false, "B0")
+  assert-equal(push(bool-prop, true), true, "B1")
+  assert-equal(scan(bool-prop, "false"), false, "B2")
+
+deftest args-test :
+  var bool = false
+  val bool-prop = BoolProp("bool", { bool }, { bool = _ })
+  var scale = 0.0f
+  val scale-prop = FloatProp("scale", { scale }, { scale = _ }, 0.1f, 0.0f, 10.0f)
+  val props = Props()
+  install(props, bool-prop)
+  install(props, scale-prop)
+  parse-args(props, [":bool" "true" ":scale" "3.0"])
+  assert-equal(pull(bool-prop), true, "A0")
+  assert-equal(pull(scale-prop), 3.0f, "A1")
+
+defn main () :
+  run-all-tests()
+
+main()
