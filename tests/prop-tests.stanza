@@ -1,3 +1,5 @@
+;; See license.txt for details about licensing.
+
 defpackage prop-tests :
   import core
   import collections
