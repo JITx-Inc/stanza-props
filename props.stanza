@@ -3,11 +3,7 @@
 defpackage props :
   import core
   import collections
-
-defn default<?T> (v:T|False, d:?T) -> T :
-  match(v) :
-    (t:False) : d
-    (o:T) : o
+  import utils
 
 public deftype Prop<T>
 public defmulti name<?T> (p:Prop<?T>) -> String
@@ -27,9 +23,13 @@ defn setter-of<T,S> (f:((T) -> False)) -> ((Prop<S>, T) -> T) :
 
 public deftype CharProp <: Prop<Char>
 
-public defn CharProp (name:String, getter:() -> Char, _setter:(Char) -> False, delta:Int, minv:Char, maxv:Char) :
+defn min-or<?T> (a:False|(T&Comparable), b:?T&Comparable) -> T : min(default<T&Comparable>(a, b), b)
+defn max-or<?T> (a:False|(T&Comparable), b:?T&Comparable) -> T : max(default<T&Comparable>(a, b), b)
+
+public defn CharProp (name:String, getter:() -> Char, _setter:(Char) -> False, delta:Int, _minv:False|Char, _maxv:False|Char) :
   val subs = Vector<((Prop<Char>) -> False)>()
   val setter = setter-of<Char,Char>(_setter)
+  val [minv, maxv] = [default<Char>(_minv, to-char(0)), default<Char>(_maxv, to-char(255))]
   new CharProp :
     defmethod name (this) -> String : name
     defmethod scan (this, str:String) -> Char : setter(this, str[0])
@@ -40,9 +40,12 @@ public defn CharProp (name:String, getter:() -> Char, _setter:(Char) -> False, d
     defmethod push (this, v:Char) -> Char: setter(this, v)
     defmethod subs (this) : subs
 
+public defn CharProp (name:String, getter:() -> Char, setter:(Char) -> False) -> CharProp :
+  CharProp(name, getter, setter, 1, false, false)
+
 public deftype IntProp <: Prop<Int>
 
-public defn IntProp (name:String, getter:() -> Int, _setter:(Int) -> False, delta:Int, minv:Int, maxv:Int) :
+public defn IntProp (name:String, getter:() -> Int, _setter:(Int) -> False, delta:Int, minv:False|Int, maxv:False|Int) :
   val setter = setter-of<Int,Int>(_setter)
   val subs = Vector<((Prop<Int>) -> False)>()
   new IntProp :
@@ -52,15 +55,18 @@ public defn IntProp (name:String, getter:() -> Int, _setter:(Int) -> False, delt
         (f:False) : -1
         (i:Int) : setter(this, i)
     defmethod post (this) -> String : to-string(getter())
-    defmethod incr (this) -> Int: setter(this, min(maxv, getter() + delta))
-    defmethod decr (this) -> Int: setter(this, max(minv, getter() - delta))
+    defmethod incr (this) -> Int: setter(this, min-or(maxv, getter() + delta))
+    defmethod decr (this) -> Int: setter(this, max-or(minv, getter() - delta))
     defmethod pull (this) -> Int: getter()
     defmethod push (this, v:Int) -> Int: setter(this, v)
     defmethod subs (this) : subs
 
+public defn IntProp (name:String, getter:() -> Int, setter:(Int) -> False) -> IntProp :
+  IntProp(name, getter, setter, 1, false, false)
+
 public deftype FloatProp <: Prop<Float>
 
-public defn FloatProp (name:String, getter:() -> Float, _setter:(Float) -> False, delta:Float, minv:Float, maxv:Float) :
+public defn FloatProp (name:String, getter:() -> Float, _setter:(Float) -> False, delta:Float, minv:False|Float, maxv:False|Float) :
   val setter = setter-of<Float,Float>(_setter)
   val subs = Vector<((Prop<Float>) -> False)>()
   new FloatProp :
@@ -70,11 +76,14 @@ public defn FloatProp (name:String, getter:() -> Float, _setter:(Float) -> False
         (f:False) : -1.0f
         (x:Float) : setter(this, x)
     defmethod post (this) -> String : to-string(getter())
-    defmethod incr (this) -> Float: setter(this, min(maxv, getter() + delta))
-    defmethod decr (this) -> Float: setter(this, max(minv, getter() - delta))
+    defmethod incr (this) -> Float: setter(this, min-or(maxv, getter() + delta))
+    defmethod decr (this) -> Float: setter(this, max-or(minv, getter() - delta))
     defmethod pull (this) -> Float: getter()
     defmethod push (this, v:Float) -> Float: setter(this, v)
     defmethod subs (this) : subs
+
+public defn FloatProp (name:String, getter:() -> Float, setter:(Float) -> False) -> FloatProp :
+  FloatProp(name, getter, setter, 1.0f, false, false)
 
 public deftype StringProp <: Prop<String>
 
@@ -97,7 +106,7 @@ public defn EnumProp (name:String, getter:() -> Int, _setter:(Int) -> False, cho
   val size = length(choices)
   defn mod (i:Int) -> Int : (i + size) % size
   defn lim (i:Int) -> Int : min(size - 1, max(0, i))
-  defn lookup (s:String) -> Int : default(index-of(choices, s), 0)
+  defn lookup (s:String) -> Int : default<Int>(index-of(choices, s), 0)
   val setter = setter-of<Int, String>(_setter)
   val subs = Vector<((Prop<String>) -> False)>()
   new EnumProp :
