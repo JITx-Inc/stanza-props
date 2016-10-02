@@ -148,14 +148,15 @@ public defn install (props:Props, prop:Prop) -> Prop :
 
 defn parse-arg (props:Props, args:Seq<String>) -> Int :
   val s = next(args)
-  if s[0] == ':' :
+  if s[0] == '-' :
     if empty?(args) :
       0
     else :
+      val start = 2 when s[1] == '-' else 1
       label<Int> return :
         val arg = next(args)
         for prop in elts(props) do :
-          if matches?(s, 1, name(prop)) :
+          if matches?(s, start, name(prop)) :
             val x = scan(prop, arg)
             ;; if scan(prop, arg) == false :
             ;;   println-all(["Unable to process property " s " on " arg])
