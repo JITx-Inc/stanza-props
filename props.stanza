@@ -146,30 +146,42 @@ public defn install (props:Props, prop:Prop) -> Prop :
   add(elts(props), prop)
   prop
 
-defn parse-arg (props:Props, args:Seq<String>) -> Int :
-  val s = next(args)
-  if s[0] == '-' :
-    if empty?(args) :
-      0
-    else :
-      val start = 2 when s[1] == '-' else 1
-      label<Int> return :
-        val arg = next(args)
-        for prop in elts(props) do :
-          if matches?(s, start, name(prop)) :
-            val x = scan(prop, arg)
-            ;; if scan(prop, arg) == false :
-            ;;   println-all(["Unable to process property " s " on " arg])
-            ;;   return(0)
-            return(1)
-        return(0)
-  else :
-    0
+defn parse-args-to-cmds (args:Seq<String>) -> Seqable<Tuple<String>> :
+  next(args)
+  generate<Tuple<String>> :
+    defn keyword? (s:String) -> True|False : length(s) > 2 and s[0] == '-' and s[1] == '-' 
+    defn chop-keyword (s:String) -> String : s[2 to false]
+    defn* loop (i:Int, cmd:List<String>) :
+      if empty?(args) :
+        if not empty?(cmd) :
+          yield(to-tuple $ reverse $ cmd)
+      else :
+        val s  = next(args)
+        val k? = keyword?(s)
+        val a  = chop-keyword(s) when k? else s
+        if k? and i > 0:
+          yield(to-tuple $ reverse $ cmd)
+          loop(i + 1, List(a))
+        else :
+          loop(i + 1, cons(a, cmd))
+    loop(0, List())
+
+defn parse-arg (props:Props, cmd:Tuple<String>) -> Int :
+  label<Int> return :
+    val keyword = cmd[0]
+    for prop in elts(props) do :
+      if matches?(keyword, 0, name(prop)) :
+        val arg = "true" when length(cmd) == 1 else cmd[1]
+        val x = scan(prop, arg)
+        ;; if scan(prop, arg) == false :
+        ;;   println-all(["Unable to process property " s " on " arg])
+        ;;   return(0)
+        return(1)
+    return(0)
 
 public defn parse-args (props:Props, args:Seqable<String>) -> Int :
   var c = 0
-  val s = to-seq(args)
-  while not empty?(s) :
-    c = c + parse-arg(props, s)
+  val cmds = to-tuple $ parse-args-to-cmds(to-seq $ args)
+  for cmd in cmds do :
+    c = c + parse-arg(props, cmd)
   c
-
