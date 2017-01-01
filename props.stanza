@@ -100,23 +100,23 @@ public defn StringProp (name:String, getter:() -> String, _setter:(String) -> Fa
     defmethod push (this, v:String) -> String: setter(this, v)
     defmethod subs (this) : subs
 
-deftype EnumProp <: StringProp
+deftype EnumProp <: Prop<Symbol>
 
-public defn EnumProp (name:String, getter:() -> Int, _setter:(Int) -> False, choices:Array<String>) :
+public defn EnumProp (name:String, getter:() -> Symbol, _setter:(Symbol) -> False, choices:Tuple<Symbol>) :
   val size = length(choices)
   defn mod (i:Int) -> Int : (i + size) % size
   defn lim (i:Int) -> Int : min(size - 1, max(0, i))
-  defn lookup (s:String) -> Int : default<Int>(index-of(choices, s), 0)
-  val setter = setter-of<Int, String>(_setter)
-  val subs = Vector<((Prop<String>) -> False)>()
+  val setter = setter-of<Symbol,Symbol>(_setter)
+  defn lookup (s:Symbol) -> Int : default<Int>(index-of(choices, s), 0)
+  val subs = Vector<((Prop<Symbol>) -> False)>()
   new EnumProp :
     defmethod name (this) -> String : name
-    defmethod scan (this, str:String) -> String : choices[setter(this, lookup(str))]
+    defmethod scan (this, str:String) -> Symbol : setter(this, choices[lookup(to-symbol $ str)])
     defmethod post (this) -> String : to-string(getter())
-    defmethod incr (this) -> String: choices[setter(this, mod(getter() + 1))]
-    defmethod decr (this) -> String: choices[setter(this, mod(getter() - 1))]
-    defmethod pull (this) -> String: choices[getter()]
-    defmethod push (this, v:String) -> String: choices[setter(this, lookup(v))]
+    defmethod incr (this) -> Symbol: setter(this, choices[mod(lookup(getter()) + 1)])
+    defmethod decr (this) -> Symbol: setter(this, choices[mod(lookup(getter()) - 1)])
+    defmethod pull (this) -> Symbol: getter()
+    defmethod push (this, v:Symbol) -> Symbol: setter(this, v)
     defmethod subs (this) : subs
 
 public deftype BoolProp <: Prop<True|False>
