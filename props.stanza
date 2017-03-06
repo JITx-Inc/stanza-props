@@ -64,6 +64,27 @@ public defn IntProp (name:String, getter:() -> Int, _setter:(Int) -> False, delt
 public defn IntProp (name:String, getter:() -> Int, setter:(Int) -> False) -> IntProp :
   IntProp(name, getter, setter, 1, false, false)
 
+public deftype LongProp <: Prop<Long>
+
+public defn LongProp (name:String, getter:() -> Long, _setter:(Long) -> False, delta:Long, minv:False|Long, maxv:False|Long) :
+  val setter = setter-of<Long,Long>(_setter)
+  val subs = Vector<((Prop<Long>) -> False)>()
+  new LongProp :
+    defmethod name (this) -> String : name
+    defmethod scan (this, str:String) -> Long :
+      match(to-long(str)) :
+        (f:False) : -1L
+        (i:Long) : setter(this, i)
+    defmethod post (this) -> String : to-string(getter())
+    defmethod incr (this) -> Long: setter(this, min-or(maxv, getter() + delta))
+    defmethod decr (this) -> Long: setter(this, max-or(minv, getter() - delta))
+    defmethod pull (this) -> Long: getter()
+    defmethod push (this, v:Long) -> Long: setter(this, v)
+    defmethod subs (this) : subs
+
+public defn LongProp (name:String, getter:() -> Long, setter:(Long) -> False) -> LongProp :
+  LongProp(name, getter, setter, 0L, false, false)
+
 public deftype FloatProp <: Prop<Float>
 
 public defn FloatProp (name:String, getter:() -> Float, _setter:(Float) -> False, delta:Float, minv:False|Float, maxv:False|Float) :
