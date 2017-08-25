@@ -1,0 +1,2 @@
+defregistry stanza-props :
+  file "props.stanza"
