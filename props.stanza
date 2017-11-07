@@ -106,6 +106,27 @@ public defn FloatProp (name:String, getter:() -> Float, _setter:(Float) -> False
 public defn FloatProp (name:String, getter:() -> Float, setter:(Float) -> False) -> FloatProp :
   FloatProp(name, getter, setter, 1.0f, false, false)
 
+public deftype DoubleProp <: Prop<Double>
+
+public defn DoubleProp (name:String, getter:() -> Double, _setter:(Double) -> False, delta:Double, minv:False|Double, maxv:False|Double) :
+  val setter = setter-of<Double,Double>(_setter)
+  val subs = Vector<((Prop<Double>) -> False)>()
+  new DoubleProp :
+    defmethod name (this) -> String : name
+    defmethod scan (this, str:String) -> Double :
+      match(to-double(str)) :
+        (f:False) : -1.0
+        (x:Double) : setter(this, x)
+    defmethod post (this) -> String : to-string(getter())
+    defmethod incr (this) -> Double: setter(this, min-or(maxv, getter() + delta))
+    defmethod decr (this) -> Double: setter(this, max-or(minv, getter() - delta))
+    defmethod pull (this) -> Double: getter()
+    defmethod push (this, v:Double) -> Double: setter(this, v)
+    defmethod subs (this) : subs
+
+public defn DoubleProp (name:String, getter:() -> Double, setter:(Double) -> False) -> DoubleProp :
+  DoubleProp(name, getter, setter, 1.0, false, false)
+
 public deftype StringProp <: Prop<String>
 
 public defn StringProp (name:String, getter:() -> String, _setter:(String) -> False) :
