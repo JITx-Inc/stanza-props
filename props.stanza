@@ -15,7 +15,7 @@ public defmulti pull<?T> (p:Prop<?T>) -> T
 public defmulti push<?T> (p:Prop<?T>, v:T) -> T
 public defmulti subs<?T> (p:Prop<?T>) -> Vector<((Prop<T>) -> False)>
 
-defn setter-of<T,S> (f:((T) -> False)) -> ((Prop<S>, T) -> T) :
+public defn setter-of<T,S> (f:((T) -> False)) -> ((Prop<S>, T) -> T) :
   fn (p:Prop<S>, x:T) -> T :
     f(x)
     for sub in subs(p) do : sub(p) ;; PUBLISH TO SUBSCRIBERS
