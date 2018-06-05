@@ -142,6 +142,21 @@ public defn StringProp (name:String, getter:() -> String, _setter:(String) -> Fa
     defmethod push (this, v:String) -> String: setter(this, v)
     defmethod subs (this) : subs
 
+public deftype SymbolProp <: Prop<Symbol>
+
+public defn SymbolProp (name:String, getter:() -> Symbol, _setter:(Symbol) -> False) :
+  val setter = setter-of<Symbol,Symbol>(_setter)
+  val subs = Vector<((Prop<Symbol>) -> False)>()
+  new SymbolProp :
+    defmethod name (this) -> String : name
+    defmethod scan (this, str:String) -> Symbol : setter(this, to-symbol(str))
+    defmethod post (this) -> String : to-string(getter())
+    defmethod incr (this) -> Symbol: getter()
+    defmethod decr (this) -> Symbol: getter()
+    defmethod pull (this) -> Symbol: getter()
+    defmethod push (this, v:Symbol) -> Symbol: setter(this, v)
+    defmethod subs (this) : subs
+
 deftype EnumProp <: Prop<Symbol>
 
 public defn EnumProp (name:String, getter:() -> Symbol, _setter:(Symbol) -> False, choices:Tuple<Symbol>) :
