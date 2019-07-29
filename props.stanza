@@ -13,6 +13,7 @@ public defmulti incr<?T> (p:Prop<?T>) -> T
 public defmulti decr<?T> (p:Prop<?T>) -> T
 public defmulti pull<?T> (p:Prop<?T>) -> T
 public defmulti push<?T> (p:Prop<?T>, v:T) -> T
+public defmulti put<?T> (p:Prop<?T>, v:T) -> False
 public defmulti subs<?T> (p:Prop<?T>) -> Vector<((Prop<T>) -> False)>
 
 public defn setter-of<T,S> (f:((T) -> False)) -> ((Prop<S>, T) -> T) :
@@ -32,6 +33,7 @@ public defn CharProp (name:String, getter:() -> Char, _setter:(Char) -> False, d
   val [minv, maxv] = [default<Char>(_minv, to-char(0)), default<Char>(_maxv, to-char(255))]
   new CharProp :
     defmethod name (this) -> String : name
+    defmethod put  (this, v:Char) : _setter(v)
     defmethod scan (this, str:String) -> Char : setter(this, str[0])
     defmethod post (this) -> String : to-string(getter())
     defmethod incr (this) -> Char: setter(this, to-char(min(to-int(maxv), to-int(getter()) + delta)))
@@ -50,6 +52,7 @@ public defn IntProp (name:String, getter:() -> Int, _setter:(Int) -> False, delt
   val subs = Vector<((Prop<Int>) -> False)>()
   new IntProp :
     defmethod name (this) -> String : name
+    defmethod put (this, v:Int) : _setter(v)
     defmethod scan (this, str:String) -> Int :
       match(to-int(str)) :
         (f:False) : -1
@@ -71,6 +74,7 @@ public defn LongProp (name:String, getter:() -> Long, _setter:(Long) -> False, d
   val subs = Vector<((Prop<Long>) -> False)>()
   new LongProp :
     defmethod name (this) -> String : name
+    defmethod put  (this, v:Long) : _setter(v)
     defmethod scan (this, str:String) -> Long :
       match(to-long(str)) :
         (f:False) : -1L
@@ -92,6 +96,7 @@ public defn FloatProp (name:String, getter:() -> Float, _setter:(Float) -> False
   val subs = Vector<((Prop<Float>) -> False)>()
   new FloatProp :
     defmethod name (this) -> String : name
+    defmethod put  (this, v:Float) : _setter(v)
     defmethod scan (this, str:String) -> Float :
       match(to-float(str)) :
         (f:False) : -1.0f
@@ -113,6 +118,7 @@ public defn DoubleProp (name:String, getter:() -> Double, _setter:(Double) -> Fa
   val subs = Vector<((Prop<Double>) -> False)>()
   new DoubleProp :
     defmethod name (this) -> String : name
+    defmethod put (this, v:Double) : _setter(v)
     defmethod scan (this, str:String) -> Double :
       match(to-double(str)) :
         (f:False) : -1.0
@@ -134,6 +140,7 @@ public defn StringProp (name:String, getter:() -> String, _setter:(String) -> Fa
   val subs = Vector<((Prop<String>) -> False)>()
   new StringProp :
     defmethod name (this) -> String : name
+    defmethod put  (this, v:String) : _setter(v)
     defmethod scan (this, str:String) -> String : setter(this, str)
     defmethod post (this) -> String : getter()
     defmethod incr (this) -> String: getter()
@@ -149,6 +156,7 @@ public defn SymbolProp (name:String, getter:() -> Symbol, _setter:(Symbol) -> Fa
   val subs = Vector<((Prop<Symbol>) -> False)>()
   new SymbolProp :
     defmethod name (this) -> String : name
+    defmethod put  (this, v:Symbol) : _setter(v)
     defmethod scan (this, str:String) -> Symbol : setter(this, to-symbol(str))
     defmethod post (this) -> String : to-string(getter())
     defmethod incr (this) -> Symbol: getter()
@@ -157,24 +165,35 @@ public defn SymbolProp (name:String, getter:() -> Symbol, _setter:(Symbol) -> Fa
     defmethod push (this, v:Symbol) -> Symbol: setter(this, v)
     defmethod subs (this) : subs
 
-deftype EnumProp <: Prop<Symbol>
+public deftype EnumProp <: Prop<Symbol>
+public defmulti choices (e:EnumProp) -> Tuple<Symbol>
 
-public defn EnumProp (name:String, getter:() -> Symbol, _setter:(Symbol) -> False, choices:Tuple<Symbol>) :
-  val size = length(choices)
-  defn mod (i:Int) -> Int : (i + size) % size
-  defn lim (i:Int) -> Int : min(size - 1, max(0, i))
+public defn EnumProp (name:String, getter:() -> Symbol, _setter:(Symbol) -> False, compute-choices:() -> Tuple<Symbol>) :
+  defn mod (values:Tuple<Symbol>, i:Int) -> Int : (i + length(values)) % length(values)
+  defn lim (values:Tuple<Symbol>, i:Int) -> Int : min(length(values) - 1, max(0, i))
   val setter = setter-of<Symbol,Symbol>(_setter)
-  defn lookup (s:Symbol) -> Int : default<Int>(index-of(choices, s), 0)
+  defn lookup (values:Tuple<Symbol>, s:Symbol) -> Int : default<Int>(index-of(values, s), 0)
   val subs = Vector<((Prop<Symbol>) -> False)>()
   new EnumProp :
     defmethod name (this) -> String : name
-    defmethod scan (this, str:String) -> Symbol : setter(this, choices[lookup(to-symbol $ str)])
+    defmethod put  (this, v:Symbol) : _setter(v)
+    defmethod scan (this, str:String) -> Symbol :
+      val values = choices(this)
+      setter(this, values[lookup(values, to-symbol $ str)])
     defmethod post (this) -> String : to-string(getter())
-    defmethod incr (this) -> Symbol: setter(this, choices[mod(lookup(getter()) + 1)])
-    defmethod decr (this) -> Symbol: setter(this, choices[mod(lookup(getter()) - 1)])
+    defmethod incr (this) -> Symbol:
+      val values = choices(this)
+      setter(this, values[mod(values, lookup(values, getter()) + 1)])
+    defmethod decr (this) -> Symbol:
+      val values = choices(this)
+      setter(this, values[mod(values, lookup(values, getter()) - 1)])
     defmethod pull (this) -> Symbol: getter()
     defmethod push (this, v:Symbol) -> Symbol: setter(this, v)
     defmethod subs (this) : subs
+    defmethod choices (this) : compute-choices()
+
+public defn EnumProp (name:String, getter:() -> Symbol, _setter:(Symbol) -> False, choices:Tuple<Symbol>) :
+  EnumProp(name, getter, _setter, { choices })
 
 public deftype BoolProp <: Prop<True|False>
 
@@ -183,6 +202,7 @@ public defn BoolProp (name:String, getter:() -> True|False, _setter:(True|False)
   val subs = Vector<((Prop<True|False>) -> False)>()
   new BoolProp :
     defmethod name (this) -> String : name
+    defmethod put  (this, v:True|False) : _setter(v)
     defmethod scan (this, str:String) -> True|False : setter(this, str == "true")
     defmethod post (this) -> String : to-string(getter())
     defmethod incr (this) -> True|False: setter(this, not getter())
