@@ -165,8 +165,10 @@ public defn SymbolProp (name:String, getter:() -> Symbol, _setter:(Symbol) -> Fa
     defmethod push (this, v:Symbol) -> Symbol: setter(this, v)
     defmethod subs (this) : subs
 
-public deftype EnumProp <: Prop<Symbol>
-public defmulti choices (e:EnumProp) -> Tuple<Symbol>
+public deftype ChoiceProp<T> <: Prop<T>
+public defmulti choices (e:ChoiceProp) -> Tuple<Symbol>
+
+public deftype EnumProp <: ChoiceProp<Symbol>
 
 public defn EnumProp (name:String, getter:() -> Symbol, _setter:(Symbol) -> False, compute-choices:() -> Tuple<Symbol>) :
   defn mod (values:Tuple<Symbol>, i:Int) -> Int : (i + length(values)) % length(values)
@@ -195,7 +197,7 @@ public defn EnumProp (name:String, getter:() -> Symbol, _setter:(Symbol) -> Fals
 public defn EnumProp (name:String, getter:() -> Symbol, _setter:(Symbol) -> False, choices:Tuple<Symbol>) :
   EnumProp(name, getter, _setter, { choices })
 
-public deftype BoolProp <: Prop<True|False>
+public deftype BoolProp <: ChoiceProp<True|False>
 
 public defn BoolProp (name:String, getter:() -> True|False, _setter:(True|False) -> False) :
   val setter = setter-of<True|False,True|False>(_setter)
@@ -210,6 +212,7 @@ public defn BoolProp (name:String, getter:() -> True|False, _setter:(True|False)
     defmethod pull (this) -> True|False: getter()
     defmethod push (this, v:True|False) -> True|False: setter(this, v)
     defmethod subs (this) : subs
+    defmethod choices (this) : [to-symbol("true"), to-symbol("false")]
 
 public deftype Props
 public defmulti elts (prop:Props) -> Vector<Prop>
