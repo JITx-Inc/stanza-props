@@ -3,7 +3,8 @@
 defpackage props :
   import core
   import collections
-  import utils
+  import utils/math
+  import utils/basic
 
 public deftype Prop<T>
 public defmulti name<?T> (p:Prop<?T>) -> String
